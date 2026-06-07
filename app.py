@@ -158,4 +158,5 @@ if st.button("🚀 Generar y Descargar Proforma PDF"):
         file_name=f"PROFORMA_{nro_proforma}.pdf",
         mime="application/pdf"
     )
-    st.success("¡PDF generado con éxito 
+        st.success("¡PDF generado con éxito y listo para descargar!")
+
