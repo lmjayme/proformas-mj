@@ -1,3 +1,4 @@
-reportlab
-openpyxl
+weasyprint
+streamlit
+
 
