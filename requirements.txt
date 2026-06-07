@@ -1,4 +1,2 @@
-weasyprint
+fpdf
 streamlit
-
-
