@@ -71,8 +71,8 @@ if archivo_subido:
         st.session_state.archivo_generado = archivo_temp
         st.success("¡Datos inyectados! Ahora ponle nombre y descarga.")
 
-        #4. EDITAR NOMBRE Y DESCARGAR
-        if 'archivo_generado' in st.session_state:
+    #4. EDITAR NOMBRE Y DESCARGAR
+    if 'archivo_generado' in st.session_state:
         nombre_final = st.text_input("💾 Nombre del archivo (sin .xlsx):", f"PROFORMA_{nro}")
         
         with open(st.session_state.archivo_generado, "rb") as f:
