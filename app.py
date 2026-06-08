@@ -1,17 +1,20 @@
 import streamlit as st
 import openpyxl
+from openpyxl.drawing.image import Image
 import os
 
-st.set_page_config(page_title="MJ LOGISTIC - Proforma Total", layout="wide")
-st.title("💼 Generador Proformas - MJ LOGISTIC")
+st.set_page_config(page_title="MJ LOGISTIC - Proforma Final", layout="wide")
+st.title("💼 Generador de Proformas - MJ LOGISTIC")
 
+# Configuración de archivos
 plantilla = "PROFORMA MJ240114 ENERGY AND SOLUTIONS ELECTRICAL SAC (1).xlsx"
+archivo_logo = "logo.png"
 
 if not os.path.exists(plantilla):
-    st.error("⚠️ Sube el archivo Excel al repositorio.")
+    st.error(f"⚠️ No encuentro el archivo: {plantilla}")
 else:
-    # --- FORMULARIO DE DATOS ---
-    with st.expander("📝 Datos Principales", expanded=True):
+    # 1. ENTRADA DE DATOS
+    with st.expander("📝 Datos del Cliente y Carga", expanded=True):
         c1, c2, c3 = st.columns(3)
         nro = c1.text_input("Nro Proforma", "MJ240114")
         cliente = c1.text_input("Cliente", "ENERGY AND SOLUTIONS ELECTRICAL SAC")
@@ -20,15 +23,10 @@ else:
         servicio = c3.text_input("Servicio", "LCL MARITIMO")
         proveedor = c3.text_input("Proveedor", "-")
 
-    # --- GASTOS DINÁMICOS (Aquí metes Comisión, Adm, etc.) ---
-    st.subheader("➕ Gastos Operativos y Destino")
+    # 2. GASTOS DINÁMICOS
+    st.subheader("➕ Gastos y Conceptos")
     if 'gastos' not in st.session_state:
-        st.session_state.gastos = [
-            {"concepto": "DESCARGA", "monto": 35.4, "ref": "MIN. 30+IGV"},
-            {"concepto": "V°B°", "monto": 118.0, "ref": "100+IGV"},
-            {"concepto": "COMISIÓN", "monto": 0.0, "ref": ""},
-            {"concepto": "GASTOS ADM.", "monto": 0.0, "ref": ""}
-        ]
+        st.session_state.gastos = [{"concepto": "DESCARGA", "monto": 35.4, "ref": "INCL. IGV"}, {"concepto": "V°B°", "monto": 118.0, "ref": "INCL. IGV"}]
 
     for i, g in enumerate(st.session_state.gastos):
         cols = st.columns([3, 1, 1, 1])
@@ -39,30 +37,38 @@ else:
             st.session_state.gastos.pop(i)
             st.rerun()
 
-    if st.button("➕ Agregar Concepto Extra"):
+    if st.button("➕ Agregar Fila"):
         st.session_state.gastos.append({"concepto": "", "monto": 0.0, "ref": ""})
         st.rerun()
 
-    # --- GENERACIÓN ---
-    if st.button("🚀 Generar Excel Completo"):
+    # 3. GENERACIÓN FINAL
+    if st.button("🚀 Generar Excel Final"):
         wb = openpyxl.load_workbook(plantilla)
         ws = wb.active
         
+        # Insertar Logo
+        if os.path.exists(archivo_logo):
+            img = Image(archivo_logo)
+            img.width = 120 # Ajusta el tamaño a tu gusto
+            img.height = 40
+            ws.add_image(img, 'A1') 
+            
         # Inyectar datos fijos
         ws['A4'] = f"PROFORMA {nro}"
         ws['A9'] = cliente
         ws['F5'] = fecha
         
-        # Escribir gastos dinámicos empezando en fila 20 (ajusta si es necesario)
+        # Inyectar gastos en tabla (empezando fila 20)
         fila = 20
         for g in st.session_state.gastos:
-            ws.cell(row=fila, column=9, value=g['concepto']) # Columna I
-            ws.cell(row=fila, column=10, value=g['monto'])    # Columna J
-            ws.cell(row=fila, column=12, value=g['ref'])      # Columna L
+            ws.cell(row=fila, column=9, value=g['concepto'])
+            ws.cell(row=fila, column=10, value=g['monto'])
+            ws.cell(row=fila, column=12, value=g['ref'])
             fila += 1
             
-        archivo = f"PROFORMA_{nro}.xlsx"
-        wb.save(archivo)
-        with open(archivo, "rb") as f:
-            st.download_button("📥 Descargar Proforma Final", f, archivo)
-        st.success("¡Excel generado con todos los campos!")
+        archivo_final = f"PROFORMA_{nro}.xlsx"
+        wb.save(archivo_final)
+        
+        with open(archivo_final, "rb") as f:
+            st.download_button("📥 Descargar Proforma Completa", f, archivo_final)
+        st.success("¡Archivo listo con logo y datos!")
