@@ -1,42 +1,68 @@
 import streamlit as st
-from fpdf import FPDF
-import io
+import openpyxl
+import os
 
-st.set_page_config(page_title="MJ LOGISTIC - PDF Profesional", layout="centered")
+st.set_page_config(page_title="MJ LOGISTIC - Proforma Total", layout="wide")
+st.title("💼 Generador Proformas - MJ LOGISTIC")
 
-st.title("💼 Generador de Proformas - Formato Fiel")
+plantilla = "PROFORMA MJ240114 ENERGY AND SOLUTIONS ELECTRICAL SAC (1).xlsx"
 
-# Datos del Cliente
-cliente = st.text_input("Señores (Cliente)", "ENERGY AND SOLUTIONS ELECTRICAL SAC")
-nro_proforma = st.text_input("Número de Proforma", "MJ240114")
+if not os.path.exists(plantilla):
+    st.error("⚠️ Sube el archivo Excel al repositorio.")
+else:
+    # --- FORMULARIO DE DATOS ---
+    with st.expander("📝 Datos Principales", expanded=True):
+        c1, c2, c3 = st.columns(3)
+        nro = c1.text_input("Nro Proforma", "MJ240114")
+        cliente = c1.text_input("Cliente", "ENERGY AND SOLUTIONS ELECTRICAL SAC")
+        fecha = c2.text_input("Fecha", "2026-06-07")
+        atencion = c2.text_input("Atención", "Srta.")
+        servicio = c3.text_input("Servicio", "LCL MARITIMO")
+        proveedor = c3.text_input("Proveedor", "-")
 
-if st.button("🚀 Generar PDF Fiel al Formato"):
-    pdf = FPDF('P', 'mm', 'A4')
-    pdf.add_page()
-    
-    # Encabezado
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(0, 10, "MJ LOGISTIC & SYSTEMS E.I.R.L.", 0, 1, 'L')
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(0, 8, f"PROFORMA: {nro_proforma}", 0, 1, 'R')
-    pdf.cell(0, 8, f"Señores: {cliente}", 0, 1, 'L')
-    pdf.line(10, 35, 200, 35)
-    
-    # Tabla de Costos (Ejemplo de estructura rígida)
-    pdf.ln(10)
-    pdf.set_fill_color(31, 78, 121) # Azul corporativo
-    pdf.set_text_color(255, 255, 255)
-    pdf.set_font("Arial", 'B', 10)
-    pdf.cell(100, 8, "CONCEPTO", 1, 0, 'C', 1)
-    pdf.cell(50, 8, "VALOR", 1, 1, 'C', 1)
-    
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("Arial", '', 10)
-    pdf.cell(100, 8, "FLETE", 1, 0, 'L')
-    pdf.cell(50, 8, "5.00 USD", 1, 1, 'R')
-    
-    # Generar salida
-    pdf_output = pdf.output(dest='S').encode('latin-1')
-    
-    st.download_button("📥 Descargar PDF Profesional", pdf_output, "proforma.pdf", "application/pdf")
-    st.success("¡PDF generado sin errores de librería!")
+    # --- GASTOS DINÁMICOS (Aquí metes Comisión, Adm, etc.) ---
+    st.subheader("➕ Gastos Operativos y Destino")
+    if 'gastos' not in st.session_state:
+        st.session_state.gastos = [
+            {"concepto": "DESCARGA", "monto": 35.4, "ref": "MIN. 30+IGV"},
+            {"concepto": "V°B°", "monto": 118.0, "ref": "100+IGV"},
+            {"concepto": "COMISIÓN", "monto": 0.0, "ref": ""},
+            {"concepto": "GASTOS ADM.", "monto": 0.0, "ref": ""}
+        ]
+
+    for i, g in enumerate(st.session_state.gastos):
+        cols = st.columns([3, 1, 1, 1])
+        st.session_state.gastos[i]['concepto'] = cols[0].text_input(f"Concepto {i+1}", g['concepto'], key=f"c{i}")
+        st.session_state.gastos[i]['monto'] = cols[1].number_input(f"Monto {i+1}", value=float(g['monto']), key=f"m{i}")
+        st.session_state.gastos[i]['ref'] = cols[2].text_input(f"Ref {i+1}", g['ref'], key=f"r{i}")
+        if cols[3].button("🗑️", key=f"d{i}"):
+            st.session_state.gastos.pop(i)
+            st.rerun()
+
+    if st.button("➕ Agregar Concepto Extra"):
+        st.session_state.gastos.append({"concepto": "", "monto": 0.0, "ref": ""})
+        st.rerun()
+
+    # --- GENERACIÓN ---
+    if st.button("🚀 Generar Excel Completo"):
+        wb = openpyxl.load_workbook(plantilla)
+        ws = wb.active
+        
+        # Inyectar datos fijos
+        ws['A4'] = f"PROFORMA {nro}"
+        ws['A9'] = cliente
+        ws['F5'] = fecha
+        
+        # Escribir gastos dinámicos empezando en fila 20 (ajusta si es necesario)
+        fila = 20
+        for g in st.session_state.gastos:
+            ws.cell(row=fila, column=9, value=g['concepto']) # Columna I
+            ws.cell(row=fila, column=10, value=g['monto'])    # Columna J
+            ws.cell(row=fila, column=12, value=g['ref'])      # Columna L
+            fila += 1
+            
+        archivo = f"PROFORMA_{nro}.xlsx"
+        wb.save(archivo)
+        with open(archivo, "rb") as f:
+            st.download_button("📥 Descargar Proforma Final", f, archivo)
+        st.success("¡Excel generado con todos los campos!")
