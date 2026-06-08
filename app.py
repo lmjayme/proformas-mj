@@ -41,9 +41,9 @@ if archivo_subido:
         st.session_state.gastos.append({"concepto": "", "monto": 0.0, "ref": ""})
         st.rerun()
 
-    # 3. GENERACIÓN FINAL (Inyección de datos)
-    if st.button("🚀 Guardar cambios y Descargar Excel"):
-        # Insertar Logo si existe en GitHub
+    # 3. GENERACIÓN FINAL (Inyección + Nombre Personalizado)
+    if st.button("🚀 Preparar Archivo para Guardar"):
+        # Insertar Logo si existe
         if os.path.exists(archivo_logo):
             img = Image(archivo_logo)
             img.width = 120 
@@ -55,7 +55,7 @@ if archivo_subido:
         ws['A9'] = cliente
         ws['F5'] = fecha
         
-        # Gastos dinámicos en fila 20 (ajusta el número si empiezan en otra fila)
+        # Gastos dinámicos (fila 20)
         fila = 20
         for g in st.session_state.gastos:
             ws.cell(row=fila, column=9, value=g['concepto'])
@@ -63,10 +63,25 @@ if archivo_subido:
             ws.cell(row=fila, column=12, value=g['ref'])
             fila += 1
             
-        # Guardar y descargar
-        archivo_final = f"PROFORMA_{nro}.xlsx"
-        wb.save(archivo_final)
+        # Guardar en memoria temporal
+        archivo_temp = "temporal.xlsx"
+        wb.save(archivo_temp)
         
-        with open(archivo_final, "rb") as f:
-            st.download_button("📥 Descargar Proforma Final", f, archivo_final)
-        st.success("¡Tu archivo se ha editado manteniendo el formato original!")
+        # GUARDAR ESTADO PARA QUE APAREZCA EL INPUT DE NOMBRE
+        st.session_state.archivo_generado = archivo_temp
+        st.success("¡Datos inyectados! Ahora ponle nombre y descarga.")
+
+        #4. EDITAR NOMBRE Y DESCARGAR
+        if 'archivo_generado' in st.session_state:
+        nombre_final = st.text_input("💾 Nombre del archivo (sin .xlsx):", f"PROFORMA_{nro}")
+        
+        with open(st.session_state.archivo_generado, "rb") as f:
+            st.download_button(
+                label=f"📥 Descargar {nombre_final}.xlsx",
+                data=f,
+                file_name=f"{nombre_final}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+
+    
