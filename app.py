@@ -1,66 +1,36 @@
 import streamlit as st
-import openpyxl
-from openpyxl.drawing.image import Image
-from datetime import date
-import os
+import pandas as pd
 import io
 
-st.set_page_config(page_title="MJ LOGISTIC - Editor Real", layout="wide")
-st.title("💼 Generador de Proformas - MJ LOGISTIC")
+st.set_page_config(page_title="MJ LOGISTIC - Lector Total", layout="wide")
+st.title("💼 Generador de Proformas - Lector Completo")
 
-# 1. CARGA DEL ARCHIVO
-archivo_subido = st.file_uploader("📂 Selecciona tu archivo Excel (.xlsx):", type=["xlsx"])
+archivo_subido = st.file_uploader("📂 Selecciona tu archivo CSV o Excel:", type=["csv", "xlsx"])
 
 if archivo_subido:
-    # Leer el archivo desde la memoria
-    bytes_data = archivo_subido.getvalue()
-    wb = openpyxl.load_workbook(io.BytesIO(bytes_data))
-    ws = wb.active
-    
-    st.success(f"✅ Archivo '{archivo_subido.name}' leído correctamente.")
-
-    # 2. LECTURA Y EDICIÓN (Sin valores predeterminados "quemados")
-    # Leemos lo que hay en la celda. Si está vacío, la caja estará vacía.
-    with st.expander("📝 Datos Principales", expanded=True):
-        col1, col2, col3 = st.columns(3)
+    # 1. CARGA INTELIGENTE (Detecta si es Excel o CSV)
+    try:
+        if archivo_subido.name.endswith('.csv'):
+            df = pd.read_csv(archivo_subido)
+        else:
+            df = pd.read_excel(archivo_subido)
         
-        # Obtenemos los valores actuales del archivo
-        nro = col1.text_input("Nro Proforma", value=str(ws['A4'].value or ""))
-        cliente = col1.text_input("Cliente", value=str(ws['A9'].value or ""))
+        st.success("✅ Archivo cargado completamente.")
         
-        # Fecha de hoy automática
-        fecha = col2.text_input("Fecha", value=date.today().strftime("%Y-%m-%d"))
+        # 2. MOSTRAR TODO EL CONTENIDO
+        st.subheader("📋 Datos del archivo")
+        st.dataframe(df, use_container_width=True)
         
-        atencion = col2.text_input("Atención", value=str(ws['C9'].value or "")) # Ajusta la celda si es otra
-        servicio = col3.text_input("Servicio", value=str(ws['A12'].value or "")) # Ajusta la celda si es otra
-        proveedor = col3.text_input("Proveedor", value=str(ws['A13'].value or "")) # Ajusta la celda si es otra
-
-    # 3. GENERACIÓN FINAL
-    if st.button("🚀 Guardar y Preparar Descarga"):
-        # Logo
-        if os.path.exists("logo.png"):
-            img = Image("logo.png")
-            img.width = 120 
-            img.height = 40
-            ws.add_image(img, 'A1')
+        # 3. AQUÍ PODRÍAS EDITAR VALORES ESPECÍFICOS
+        st.subheader("✏️ Edición Rápida")
+        # Esto permite editar la tabla entera como si fuera un Excel
+        df_editado = st.data_editor(df, use_container_width=True)
+        
+        # 4. BOTÓN PARA DESCARGAR EL NUEVO ARCHIVO
+        if st.button("💾 Guardar cambios y Descargar"):
+            output = io.BytesIO()
+            df_editado.to_csv(output, index=False)
+            st.download_button("📥 Descargar CSV editado", output.getvalue(), "Proforma_Editada.csv")
             
-        # Inyectar datos editados al Excel
-        ws['A4'] = nro
-        ws['A9'] = cliente
-        ws['F5'] = fecha
-        
-        # Guardar en memoria
-        output = io.BytesIO()
-        wb.save(output)
-        st.session_state.archivo_generado = output.getvalue()
-        st.success("¡Datos inyectados! El archivo está listo.")
-
-    # 4. DESCARGA
-    if 'archivo_generado' in st.session_state:
-        nombre_final = st.text_input("💾 Nombre para descargar:", f"PROFORMA_{nro}")
-        st.download_button(
-            label="📥 Descargar Excel",
-            data=st.session_state.archivo_generado,
-            file_name=f"{nombre_final}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+    except Exception as e:
+        st.error(f"Error al leer el archivo: {e}")
